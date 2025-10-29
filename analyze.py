@@ -73,7 +73,7 @@ def plot_grouped_bars(ct: pd.DataFrame, feature_name: str, answer_col: str, out_
     ax.set_ylabel("Count")
     ax.set_xticks(x + width * (n_series - 1) / 2)
     ax.set_xticklabels([str(idx) for idx in ct.index], rotation=30, ha="right")
-    ax.legend(title=answer_col, ncol=min(4, n_series), frameon=False)
+    ax.legend(title=answer_col, ncol=min(4, n_groups), frameon=False)
 
     fig.tight_layout()
     fig.savefig(out_png, dpi=150)
@@ -110,6 +110,7 @@ def main():
     # Remove first character from each answer
     df[answer_col] = df[answer_col].apply(lambda x: x[1:] if isinstance(x, str) and len(x) > 0 else x)
 
+    # Counts the frequency of each answer
     ans_counts = df[answer_col].value_counts(dropna=False).sort_index()
     ans_counts.to_csv(os.path.join(args.output_dir, "_overall_answer_counts.csv"), encoding="utf-8-sig")
 
@@ -118,10 +119,12 @@ def main():
             continue
 
         s = df[col]
+        # If categorical or boolean
         if is_categorical_dtype(s):
             s_proc = clip_to_top_n_categories(s, args.max_categories)
             s_proc = s_proc.fillna("Missing").astype(str)
             feature_label = col
+        # bin if numerical
         elif pd.api.types.is_numeric_dtype(s):
             s_proc = bin_numeric_series(s, args.numeric_bins)
             feature_label = f"{col} (binned)"
