@@ -173,7 +173,13 @@ def run_test():
                                     if len(answer) > 0:
                                         answer = [answer[i] for i in order_back]
                                         if _TEST == "pass2":
+                                            answer[1] = 6 - answer[1]
+                                            answer[2] = 6 - answer[2]
+                                        elif _TEST == "pass3":
                                             answer[0] = 6 - answer[0]
+                                            answer[1] = 6 - answer[1]
+                                            answer[2] = 6 - answer[2]
+                                            answer[3] = 6 - answer[3]
                                         # input(answer)
                                         break
                             except Exception as e:
