@@ -88,7 +88,7 @@ def plot_grouped_bars(
     n_groups = ct.shape[0]
     n_series = ct.shape[1]
 
-    fig = plt.figure(figsize=(max(6, min(18, 0.6 * n_groups + 4)), 6))
+    fig = plt.figure(figsize=(max(10, min(18, 0.6 * n_groups + 12)), 6))
     ax = fig.add_subplot(111)
 
     x = np.arange(n_groups)
@@ -120,7 +120,7 @@ def plot_grouped_bars(
         handles = handles + [mean_line]
         labels = labels + [mean_label or f"Mean of {answer_col}"]
 
-    ax.legend(handles, labels, title=answer_col, ncol=min(4, n_groups), frameon=False)
+    ax.legend(handles, labels, title=answer_col, ncol=min(2, n_groups), frameon=False, loc='center left', bbox_to_anchor=(1.05, 0.5))
 
     fig.tight_layout()
     fig.savefig(out_png, dpi=150)
@@ -142,6 +142,7 @@ def main():
     parser.add_argument("--numeric_bins", type=int, default=5, help="Number of quantile bins for float numeric feature columns")
     parser.add_argument("--answer_bins", type=int, default=5, help="If answer is float, number of quantile bins for the answer distribution")
     parser.add_argument("--max_categories", type=int, default=20, help="Max distinct values to keep for categorical features")
+    parser.add_argument("--scenario_analysis", type=bool, default=False, help="Analyse all other traits based on Scenario")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -161,7 +162,8 @@ def main():
     # Keep 'answer' as-is (no stripping). We'll keep an original numeric copy if float.
     # If not float, still convert to string for consistent crosstabs later when needed.
     # But we need two parallel representations: (a) possibly binned answer labels for counts, (b) numeric for means.
-    answer_series = df[answer_col]
+    answer_series = df[answer_col].apply(lambda x: x[1:] if isinstance(x, str) and len(x) > 0 else x)
+
 
     # Determine if answer is float dtype and get numeric version for means
     is_answer_float = pd.api.types.is_float_dtype(answer_series)
@@ -204,26 +206,52 @@ def main():
             s_proc = clip_to_top_n_categories(s.astype(str), args.max_categories)
             feature_label = str(col)
 
+        if args.scenario_analysis:
+            scenario_col = "Scenario"
+            df_temp = pd.DataFrame({
+                'Feature': s_proc,
+                'Scenario_Answer': df[scenario_col].astype(str).fillna('Missing') + " - " + df["__answer_for_ct__"],
+            })
+            
+            # The columns of ct are now 'Scenario1 - AnswerBin1', 'Scenario1 - AnswerBin2', 'Scenario2 - AnswerBin1', etc.
+            feature_label_ct = feature_label
+            answer_label_for_legend_ct = f"{scenario_col} x {answer_label_for_legend}"
+
         # Crosstab: feature categories vs (binned or original) answer labels
-        ct = pd.crosstab(s_proc, df["__answer_for_ct__"], dropna=False)
+        ct = pd.crosstab(df_temp['Feature'], df_temp['Scenario_Answer'], dropna=False) if args.scenario_analysis else pd.crosstab(s_proc, df["__answer_for_ct__"], dropna=False)
         ct_path = os.path.join(args.output_dir, f"{col}__x__{answer_col}_crosstab.csv")
         ct.to_csv(ct_path, encoding="utf-8-sig")
 
-        # Compute mean answer per feature category (only if answer was float)
         means_per_cat = None
-        if is_answer_float:
-            # Align means with the category order used in ct.index
-            means_per_cat = []
-            for cat in ct.index:
-                mask = s_proc == str(cat)
-                # Note: s_proc was cast to str; compare as str
-                if mask.any():
-                    means_per_cat.append(float(np.nanmean(answer_numeric[mask])))
-                else:
-                    means_per_cat.append(np.nan)
+        if args.scenario_analysis:
+            mean_label_scenario = None
+            if is_answer_float:
+                # Group by the Feature and the Scenario, then calculate the mean of the numeric answer
+                mean_df = (
+                    df.groupby([s_proc.name, scenario_col], dropna=False)[answer_col]
+                    .mean()
+                    .unstack(fill_value=np.nan) # Unstack to get Scenario values as columns
+                    .reindex(ct.index) # Align the index order with the crosstab
+                )
+                # Convert the DataFrame of means to a list of lists/array for plotting.
+                # This requires modification to plot_grouped_bars (see step 3).
+                means_per_cat = mean_df.values.T # Transpose to align with new plot logic
+                mean_label_scenario = f"Mean of {answer_col} by {scenario_col}"
+        else:
+            # Compute mean answer per feature category (only if answer was float)
+            if is_answer_float:
+                # Align means with the category order used in ct.index
+                means_per_cat = []
+                for cat in ct.index:
+                    mask = s_proc == str(cat)
+                    # Note: s_proc was cast to str; compare as str
+                    if mask.any():
+                        means_per_cat.append(float(np.nanmean(answer_numeric[mask])))
+                    else:
+                        means_per_cat.append(np.nan)
 
         # Plot
-        png_path = os.path.join(args.output_dir, f"{col}__x__{answer_col}.png")
+        png_path = os.path.join(args.output_dir, f"{col}__x__{scenario_col}.png") if args.scenario_analysis else os.path.join(args.output_dir, f"{col}__x__{answer_col}.png")
         try:
             plot_grouped_bars(
                 ct,
@@ -231,7 +259,7 @@ def main():
                 answer_label_for_legend,
                 png_path,
                 mean_values=means_per_cat,
-                mean_label=(mean_label if is_answer_float else None),
+                mean_label= mean_label_scenario if args.scenario_analysis else (mean_label if is_answer_float else None),
             )
         except Exception as e:
             err_path = os.path.join(args.output_dir, f"{col}__plot_error.txt")
