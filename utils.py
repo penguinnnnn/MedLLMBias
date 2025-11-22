@@ -8,16 +8,12 @@ import re
 
 # === Determine backend ===
 openai_models = [
-    "gpt-4o-mini-2024-07-18", "gpt-4o-2024-05-13", "gpt-4o-2024-08-06",
-    "gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "o1-mini-2024-09-12",
-    "o3-mini-2025-01-31", "o4-mini-2025-04-16"
+    "gpt-5-mini-2025-08-07", "gpt-4.1-2025-04-14"
 ]
 
 together_models = [
-    "Qwen/Qwen2.5-7B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct-Turbo", "Qwen/QwQ-32B",
-    "deepseek-ai/DeepSeek-V3", "deepseek-ai/DeepSeek-R1", "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-    "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo", "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-    "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo"
+    "Qwen/Qwen3-235B-A22B-Instruct-2507-tput", "deepseek-ai/DeepSeek-V3.1", "zai-org/GLM-4.6", "moonshotai/Kimi-K2-Instruct-0905",
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
 ]
 
 
@@ -55,7 +51,7 @@ def ask_llm(client, model, msgs, temperature=1.0, top_p=1.0, max_tokens=4096):
                 top_p=top_p,
                 max_tokens=max_tokens
             )
-        return response.choices[0].message.content
+        return response.choices[0].message.content, response.choices[0].message.reasoning
     except Exception as e:
         return f"[ERROR calling model]: {e}"
 
