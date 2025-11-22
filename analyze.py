@@ -1,273 +1,248 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-import argparse
 import os
-import sys
-import re
-from typing import Optional, Sequence
+import argparse
+from typing import List
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
-# ---------------------------- Helpers ----------------------------
-def is_categorical_dtype(s: pd.Series) -> bool:
-    """Treat object, category, bool, or integer dtypes as categorical for plotting."""
-    return (
-        s.dtype == "object"
-        or pd.api.types.is_categorical_dtype(s)
-        or pd.api.types.is_bool_dtype(s)
-        or pd.api.types.is_integer_dtype(s)
-    )
+FEATURE_COLUMNS = ["Scenario", "Name", "Age", "Race", "Gender", "SO"]
 
 
-def safe_value_counts(s: pd.Series) -> pd.Series:
-    return s.fillna("Missing").astype(str).value_counts(dropna=False)
+def read_data(csv_path: str) -> pd.DataFrame:
+    """Read CSV file with header into a DataFrame."""
+    if not os.path.isfile(csv_path):
+        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+
+    df = pd.read_csv(csv_path)
+    return df
 
 
-def clip_to_top_n_categories(s: pd.Series, top_n: int) -> pd.Series:
-    if top_n is None or top_n <= 0:
-        return s
-    vc = safe_value_counts(s)
-    if len(vc) <= top_n:
-        return s.fillna("Missing").astype(str)
-    keep = set(vc.head(top_n).index.astype(str))
-    s2 = s.fillna("Missing").astype(str).apply(lambda x: x if x in keep else "Other")
-    return s2
+def ensure_columns(df: pd.DataFrame, answer_col: str, features: List[str]) -> List[str]:
+    """Check which feature columns exist and return valid ones.
 
-
-def bin_numeric_series(s: pd.Series, q: int) -> pd.Series:
-    """Bin a numeric series. If only one unique non-null value, return as categorical strings."""
-    if s.dropna().nunique() <= 1:
-        return s.astype(object).fillna("Missing")
-    try:
-        binned = pd.qcut(s, q=q, duplicates="drop")
-        return binned.astype(str).fillna("Missing")
-    except Exception:
-        try:
-            binned = pd.cut(s, bins=q)
-            return binned.astype(str).fillna("Missing")
-        except Exception:
-            return s.astype(object).fillna("Missing")
-
-
-def is_numeric_column_name(name: str) -> bool:
-    """Return True if the column name is purely digits like '123' or '007'."""
-    if name is None:
-        return False
-    return bool(re.fullmatch(r"\s*\d+\s*", str(name)))
-
-
-def should_skip_column(name: str, answer_col: str) -> bool:
-    if name == answer_col:
-        return True
-    if str(name) == "Test":
-        return True
-    if is_numeric_column_name(str(name)):
-        return True
-    return False
-
-
-# ---------------------------- Plotting ----------------------------
-def plot_grouped_bars(
-    ct: pd.DataFrame,
-    feature_name: str,
-    answer_col: str,
-    out_png: str,
-    mean_values: Optional[Sequence[float]] = None,
-    mean_label: Optional[str] = None,
-):
-    """Plot grouped bars for counts; optionally overlay mean markers/line on a second y-axis.
-
-    ct.index: feature categories (x). ct.columns: answer buckets/levels (series).
-    mean_values: list/array aligned with ct.index order.
+    Raises if answer_col does not exist.
     """
-    ct = ct.sort_index()
-    n_groups = ct.shape[0]
-    n_series = ct.shape[1]
+    if answer_col not in df.columns:
+        raise KeyError(f"answer column '{answer_col}' not found in CSV. Columns: {list(df.columns)}")
 
-    fig = plt.figure(figsize=(max(10, min(18, 0.6 * n_groups + 12)), 6))
-    ax = fig.add_subplot(111)
+    valid_features = []
+    for col in features:
+        if col in df.columns:
+            valid_features.append(col)
+        else:
+            print(f"[WARN] Feature column '{col}' not found in CSV. Skipping.")
+    if not valid_features:
+        raise ValueError("None of the specified feature columns were found in the CSV.")
+    return valid_features
 
-    x = np.arange(n_groups)
-    width = 0.8 / max(1, n_series)
 
-    # Bars: counts
-    bars = []
-    for i, col in enumerate(ct.columns):
-        bars.append(
-            ax.bar(x + i * width, ct[col].values, width, label=str(col))
+def get_output_path(csv_path: str, feature: str) -> str:
+    """Construct PDF output path next to CSV.
+
+    Example: A.csv + feature 'Scenario' -> A_Scenario.pdf
+    """
+    base_dir = os.path.dirname(os.path.abspath(csv_path))
+    base_name = os.path.splitext(os.path.basename(csv_path))[0]
+    out_name = f"{base_name}_{feature}.pdf"
+    return os.path.join(base_dir, out_name)
+
+
+def plot_discrete_answer(
+    df: pd.DataFrame,
+    csv_path: str,
+    answer_col: str,
+    feature_columns: List[str],
+) -> None:
+    """For each feature, plot grouped bar chart of answer distribution.
+
+    x-axis: feature values
+    grouped bars: answer categories
+    y-axis: count
+    """
+    for feature in feature_columns:
+        # Drop rows with NA in feature or answer
+        sub = df[[feature, answer_col]].dropna()
+        if sub.empty:
+            print(f"[WARN] No data for feature '{feature}' after dropping NA. Skipping.")
+            continue
+
+        # Treat both as categorical
+        sub[feature] = sub[feature].astype(str)
+        sub[answer_col] = sub[answer_col].astype(str)
+
+        # contingency table: rows = feature values, cols = answer categories
+        ctab = pd.crosstab(sub[feature], sub[answer_col])
+
+        if ctab.empty:
+            print(f"[WARN] Crosstab for feature '{feature}' is empty. Skipping.")
+            continue
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Grouped bar plot: index (x) = feature values, columns = answer categories
+        ctab.plot(kind="bar", ax=ax)
+
+        ax.set_title(f"Distribution of '{answer_col}' by {feature}")
+        ax.set_xlabel(feature)
+        ax.set_ylabel("Count")
+        ax.legend(title=answer_col, bbox_to_anchor=(1.04, 1), loc="upper left")
+
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+
+        out_path = get_output_path(csv_path, feature)
+        fig.savefig(out_path)
+        plt.close(fig)
+        print(f"[INFO] Saved discrete-answer figure: {out_path}")
+
+
+def compute_bins_for_continuous(series: pd.Series, bin_size: float = 5.0):
+    """Compute global bin edges (size = bin_size) for a numeric series."""
+    if series.empty:
+        raise ValueError("Series is empty; cannot compute bins.")
+
+    min_val = np.nanmin(series.values)
+    max_val = np.nanmax(series.values)
+
+    if np.isnan(min_val) or np.isnan(max_val):
+        raise ValueError("Series contains only NaNs; cannot compute bins.")
+
+    # Round down / up to nearest bin_size
+    start = np.floor(min_val / bin_size) * bin_size
+    end = np.ceil(max_val / bin_size) * bin_size
+    if start == end:
+        # force at least one bin
+        end = start + bin_size
+
+    bins = np.arange(start, end + bin_size, bin_size)
+    return bins
+
+
+def plot_continuous_answer(
+    df: pd.DataFrame,
+    csv_path: str,
+    answer_col: str,
+    feature_columns: List[str],
+    bin_size: float = 5.0,
+) -> None:
+    """For each feature, plot grouped bar chart of binned counts + mean line.
+
+    x-axis: feature values
+    grouped bars: bins of answer (size = bin_size)
+    left y-axis: count in each bin
+    right y-axis: mean(answer) for each feature value
+    """
+    # Make sure answer is numeric
+    numeric = pd.to_numeric(df[answer_col], errors="coerce")
+    df = df.copy()
+    df[answer_col] = numeric
+
+    # Global bins across all rows
+    bins = compute_bins_for_continuous(df[answer_col].dropna(), bin_size=bin_size)
+    bin_labels = [f"[{bins[i]}, {bins[i+1]})" for i in range(len(bins) - 1)]
+
+    for feature in feature_columns:
+        # Drop rows with NA in feature or answer
+        sub = df[[feature, answer_col]].dropna()
+        if sub.empty:
+            print(f"[WARN] No valid data for feature '{feature}' after dropping NA. Skipping.")
+            continue
+
+        # Cast feature to string (categorical)
+        sub[feature] = sub[feature].astype(str)
+
+        # Bin the answer
+        sub["_bin"] = pd.cut(sub[answer_col], bins=bins, labels=bin_labels, include_lowest=True, right=False)
+
+        # Count per (feature value, bin)
+        counts = (
+            sub.groupby([feature, "_bin"]).size().unstack("_bin").reindex(columns=bin_labels, fill_value=0)
         )
 
-    ax.set_title(f"{feature_name} × {answer_col} distribution", pad=10)
-    ax.set_xlabel(feature_name)
-    ax.set_ylabel("Count")
-    ax.set_xticks(x + width * (n_series - 1) / 2)
-    ax.set_xticklabels([str(idx) for idx in ct.index], rotation=30, ha="right")
+        if counts.empty:
+            print(f"[WARN] No binned counts for feature '{feature}'. Skipping.")
+            continue
 
-    handles, labels = ax.get_legend_handles_labels()
+        # Mean per feature value
+        means = sub.groupby(feature)[answer_col].mean().reindex(counts.index)
 
-    # Overlay mean of answer across feature categories, if provided
-    if mean_values is not None:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Grouped bar plot: x-axis = feature values, grouped bars for each bin
+        counts.plot(kind="bar", ax=ax)
+
+        ax.set_xlabel(feature)
+        ax.set_ylabel("Count")
+        ax.set_title(f"Binned distribution of '{answer_col}' (bin={bin_size}) and mean by {feature}")
+
+        # Secondary axis for means
         ax2 = ax.twinx()
-        # Center markers in the middle of each group
-        x_centers = x + width * (n_series - 1) / 2
-        mean_line, = ax2.plot(x_centers, mean_values, marker="o", linestyle="-", label=mean_label or "Mean")
-        ax2.set_ylabel(mean_label or f"Mean of {answer_col}")
-        # Merge legends: bars + mean line
-        handles = handles + [mean_line]
-        labels = labels + [mean_label or f"Mean of {answer_col}"]
+        x_positions = np.arange(len(counts.index))
+        ax2.plot(x_positions, means.values, marker="o", linestyle="-", label="Mean of answer")
+        ax2.set_ylabel(f"Mean of {answer_col}")
 
-    ax.legend(handles, labels, title=answer_col, ncol=min(2, n_groups), frameon=False, loc='center left', bbox_to_anchor=(1.05, 0.5))
+        # Align x ticks with feature values
+        ax.set_xticklabels(counts.index, rotation=45, ha="right")
 
-    fig.tight_layout()
-    fig.savefig(out_png, dpi=150)
-    plt.close(fig)
+        # Combine legends from both axes
+        handles1, labels1 = ax.get_legend_handles_labels()
+        handles2, labels2 = ax2.get_legend_handles_labels()
+        # For clarity, rename the grouped-bars legend title
+        ax.legend(handles1, labels1, title=f"{answer_col} bins", bbox_to_anchor=(1.04, 1), loc="upper left")
+        ax2.legend(handles2, labels2, loc="upper right")
 
+        plt.tight_layout()
 
-# ---------------------------- Main ----------------------------
+        out_path = get_output_path(csv_path, feature)
+        fig.savefig(out_path)
+        plt.close(fig)
+        print(f"[INFO] Saved continuous-answer figure: {out_path}")
+
 
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Analyze the relationship between an 'answer' column and all other columns, "
-            "producing grouped bar charts and contingency tables."
-        ),
+            "Analyze answer distribution by discrete feature columns and save grouped bar charts as PDFs."
+        )
     )
-    parser.add_argument("--csv", required=True, help="Input CSV file path")
-    parser.add_argument("--answer_col", default="answer", help="Name of the answer column (default: answer)")
-    parser.add_argument("--output_dir", default="charts", help="Output folder for charts/tables (default: charts)")
-    parser.add_argument("--numeric_bins", type=int, default=5, help="Number of quantile bins for float numeric feature columns")
-    parser.add_argument("--answer_bins", type=int, default=5, help="If answer is float, number of quantile bins for the answer distribution")
-    parser.add_argument("--max_categories", type=int, default=20, help="Max distinct values to keep for categorical features")
-    parser.add_argument("--scenario_analysis", type=bool, default=False, help="Analyse all other traits based on Scenario")
+    parser.add_argument("--csv_path", help="Path to the input CSV file (with header)")
+    parser.add_argument(
+        "--answer-col",
+        default="answer",
+        help="Name of the answer column (default: 'answer')",
+    )
+    parser.add_argument(
+        "--answer-type",
+        choices=["discrete", "continuous"],
+        required=True,
+        help="Specify whether the answer column is 'discrete' or 'continuous'",
+    )
+    parser.add_argument(
+        "--bin-size",
+        type=float,
+        default=6.0,
+        help="Bin size for continuous answer (default: 5.0)",
+    )
+    parser.add_argument(
+        "--scenario_analysis", 
+        type=bool, 
+        default=False, 
+        help="Analyse all other traits based on Scenario",
+    )
+
     args = parser.parse_args()
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    df = read_data(args.csv_path)
 
-    try:
-        df = pd.read_csv(args.csv)
-    except Exception as e:
-        print(f"Failed to read CSV: {e}", file=sys.stderr)
-        sys.exit(1)
+    # Validate columns
+    features = ensure_columns(df, args.answer_col, FEATURE_COLUMNS)
 
-    if args.answer_col not in df.columns:
-        print(f"Answer column not found: {args.answer_col}", file=sys.stderr)
-        sys.exit(1)
-
-    answer_col = args.answer_col
-
-    # Keep 'answer' as-is (no stripping). We'll keep an original numeric copy if float.
-    # If not float, still convert to string for consistent crosstabs later when needed.
-    # But we need two parallel representations: (a) possibly binned answer labels for counts, (b) numeric for means.
-    answer_strings = ["ketorolac 60 mg IM",  "morphine 4 mg IV", "hydromorphone 1 mg IV", "hydromorphone 4 mg IV"]
-    answer_series = df[answer_col].apply(lambda x: x[1:] if isinstance(x, str) and len(x) > 0 else answer_strings[x-1])
-
-
-    # Determine if answer is float dtype and get numeric version for means
-    is_answer_float = pd.api.types.is_float_dtype(answer_series)
-    answer_numeric = None
-    if is_answer_float:
-        answer_numeric = answer_series.astype(float)
-        # Create binned labels for answer to use in crosstabs
-        answer_binned = bin_numeric_series(answer_numeric, args.answer_bins)
-        df["__answer_for_ct__"] = answer_binned
-        answer_label_for_legend = f"{answer_col} bins"
-        mean_label = f"Mean of {answer_col}"
+    if args.answer_type == "discrete":
+        plot_discrete_answer(df, args.csv_path, args.answer_col, features)
     else:
-        # Use the original as string labels
-        df["__answer_for_ct__"] = answer_series.astype(str).fillna("Missing")
-        answer_label_for_legend = answer_col
-        mean_label = None
-
-    # Overall answer counts
-    overall_counts = df["__answer_for_ct__"].value_counts(dropna=False).sort_index()
-    overall_counts.to_csv(os.path.join(args.output_dir, "_overall_answer_counts.csv"), encoding="utf-8-sig")
-
-    for col in df.columns:
-        if should_skip_column(col, answer_col):
-            continue
-
-        s = df[col]
-
-        # Prepare feature series (categorical index for crosstab), per v2 rules
-        if is_categorical_dtype(s):
-            s_proc = clip_to_top_n_categories(s, args.max_categories).fillna("Missing").astype(str)
-            feature_label = str(col)
-        elif pd.api.types.is_numeric_dtype(s):
-            if pd.api.types.is_integer_dtype(s):
-                s_proc = clip_to_top_n_categories(s, args.max_categories).fillna("Missing").astype(str)
-                feature_label = str(col)
-            else:
-                s_proc = bin_numeric_series(s, args.numeric_bins)
-                feature_label = f"{col} (binned)"
-        else:
-            s_proc = clip_to_top_n_categories(s.astype(str), args.max_categories)
-            feature_label = str(col)
-
-        if args.scenario_analysis:
-            scenario_col = "Scenario"
-            df_temp = pd.DataFrame({
-                'Feature': s_proc,
-                'Scenario_Answer': df[scenario_col].astype(str).fillna('Missing') + " - " + df["__answer_for_ct__"],
-            })
-            
-            # The columns of ct are now 'Scenario1 - AnswerBin1', 'Scenario1 - AnswerBin2', 'Scenario2 - AnswerBin1', etc.
-            feature_label_ct = feature_label
-            answer_label_for_legend_ct = f"{scenario_col} x {answer_label_for_legend}"
-
-        # Crosstab: feature categories vs (binned or original) answer labels
-        ct = pd.crosstab(df_temp['Feature'], df_temp['Scenario_Answer'], dropna=False) if args.scenario_analysis else pd.crosstab(s_proc, df["__answer_for_ct__"], dropna=False)
-        ct_path = os.path.join(args.output_dir, f"{col}__x__{answer_col}_crosstab.csv")
-        ct.to_csv(ct_path, encoding="utf-8-sig")
-
-        means_per_cat = None
-        if args.scenario_analysis:
-            mean_label_scenario = None
-            if is_answer_float:
-                # Group by the Feature and the Scenario, then calculate the mean of the numeric answer
-                mean_df = (
-                    df.groupby([s_proc.name, scenario_col], dropna=False)[answer_col]
-                    .mean()
-                    .unstack(fill_value=np.nan) # Unstack to get Scenario values as columns
-                    .reindex(ct.index) # Align the index order with the crosstab
-                )
-                # Convert the DataFrame of means to a list of lists/array for plotting.
-                # This requires modification to plot_grouped_bars (see step 3).
-                means_per_cat = mean_df.values.T # Transpose to align with new plot logic
-                mean_label_scenario = f"Mean of {answer_col} by {scenario_col}"
-        else:
-            # Compute mean answer per feature category (only if answer was float)
-            if is_answer_float:
-                # Align means with the category order used in ct.index
-                means_per_cat = []
-                for cat in ct.index:
-                    mask = s_proc == str(cat)
-                    # Note: s_proc was cast to str; compare as str
-                    if mask.any():
-                        means_per_cat.append(float(np.nanmean(answer_numeric[mask])))
-                    else:
-                        means_per_cat.append(np.nan)
-
-        # Plot
-        png_path = os.path.join(args.output_dir, f"{col}__x__{scenario_col}.png") if args.scenario_analysis else os.path.join(args.output_dir, f"{col}__x__{answer_col}.png")
-        try:
-            plot_grouped_bars(
-                ct,
-                feature_label,
-                answer_label_for_legend,
-                png_path,
-                mean_values=means_per_cat,
-                mean_label= mean_label_scenario if args.scenario_analysis else (mean_label if is_answer_float else None),
-            )
-        except Exception as e:
-            err_path = os.path.join(args.output_dir, f"{col}__plot_error.txt")
-            with open(err_path, "w", encoding="utf-8") as f:
-                f.write(str(e))
-
-    print(f"Done! Charts and tables are saved in: {os.path.abspath(args.output_dir)}")
+        plot_continuous_answer(df, args.csv_path, args.answer_col, features, bin_size=args.bin_size)
 
 
 if __name__ == "__main__":

@@ -16,16 +16,15 @@ _GENDER = ["Male", "Female"]
 _SO = ["hetro", "homo"]
 _LANGUAGE = ["Neutral", "Stigmatizing_All", "Stigmatizing_Credibility", "Stigmatizing_Compliance", "Stigmatizing_Descriptors"]
 _PERCENT = [1, .75, .5, .25]
-_TEST = "pain"
+_TESTS = ["pain", "pass2", "pass3"]
 _COT = False
-RETRY_NUM = 5
+RETRY_NUM = 10
 
-MODEL = 'gpt-4o-2024-08-06'
+MODEL = 'zai-org/GLM-4.6'
 NAME_IN_PATH = MODEL.split("/")[-1]
 
-BASE_DIR = f'results/stigmatizing_percents/{NAME_IN_PATH}'
+BASE_DIR = f'results/stigmatizing/{NAME_IN_PATH}'
 COT_STRING = "_COT" if _COT else ""
-FILENAME = os.path.join(BASE_DIR, f'{_TEST}{COT_STRING}.csv')
 
 os.makedirs(BASE_DIR, exist_ok=True)
 
@@ -36,7 +35,6 @@ CLIENT = build_model(MODEL)
 # Stereotyping – highlighted in yellow
 # Blame – highlighted in purple
 # Other – highlighted in blue
-
 
 # ----------- ACL Version -------------------
 # 1. Credibility & Obstinacy (Disbelief, Difficult, Exclude): insinuation of doubt regarding a patient’s testimony or describes the patient as obstinate. 
@@ -211,13 +209,13 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
     choices = "\n".join([f"{a+1}. {test[1][b]}" for a, b in enumerate(order)])
     thinking_string = test[2] if _COT else test[3]
     messages.append({"role": "user", "content": f"{test[0]}\n{choices}\n{thinking_string}"})
-    # print(messages)
-    # print(order)
-    # print(order_back)
     return messages, order, order_back
 
 
-def run_test():
+def run_test(_TEST):
+    FILENAME = os.path.join(BASE_DIR, f'{_TEST}{COT_STRING}.csv')
+    with open(FILENAME, 'a') as f:
+        f.write("Scenario,Name,Age,Race,Gender,SO,answer\n")
     for n in _NAME:
         for a in _AGE:
             for r in _RACE:
@@ -228,19 +226,19 @@ def run_test():
                                 if l == "Neutral" and p != 1:
                                     break
                                 scenario = construct_scenario(l, p)
-                                # print(f"{l},{p},{n},{a},{r},{g},{s}")
+                                print(f"{l},{p},{n},{a},{r},{g},{s}")
                                 response = ''
                                 messages, order, order_back = construct_prompt(scenario, _TEST, n, a, r, g, s)
-                                # print(messages)
+                                answer = ""
+                                reasoning = ""
                                 for attempt in range(RETRY_NUM):
                                     try:
-                                        response_text = ask_llm(CLIENT, MODEL, messages)
+                                        response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
                                         response = json.loads(extract_last_json(response_text))
                                         if _TEST == "pain":
                                             answer = int(response.get("choice", -1))
                                             if answer != -1:
                                                 answer = order[answer-1] + 1
-                                                # input(answer)
                                                 break
                                         elif _TEST[:4] == "pass":
                                             answer = list(response.get("rating", []))
@@ -254,17 +252,19 @@ def run_test():
                                                     answer[1] = 6 - answer[1]
                                                     answer[2] = 6 - answer[2]
                                                     answer[3] = 6 - answer[3]
-                                                # input(answer)
                                                 break
                                     except Exception as e:
                                         print(f"Failed: {e}; Attempt {attempt+1} failed; retrying...")
                                         time.sleep(1)
 
-                                # print(f"{answer}")
+                                print(f"{answer}")
                                 with open(FILENAME, 'a') as f:
-                                    f.write(f"{l}-{p},Pain,{n},{a},{r},{g},{s},\"{answer}\"\n")
-                                
+                                    write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
+                                    f.write(f"{l}-{p},{n},{a},{r},{g},{s},{write_answer}\n")
+                                with open(FILENAME.replace('.csv', '.txt'), 'a') as f:
+                                    f.write(f"{reasoning}\n\n\n====================\n\n\n")
 
 
 if __name__ == "__main__":
-    run_test()
+    for t in _TESTS:
+        run_test(t)
