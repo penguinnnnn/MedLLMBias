@@ -207,7 +207,7 @@ def main():
             "Analyze answer distribution by discrete feature columns and save grouped bar charts as PDFs."
         )
     )
-    parser.add_argument("--csv_path", help="Path to the input CSV file (with header)")
+    parser.add_argument("csv_path", help="Path to the input CSV file (with header)")
     parser.add_argument(
         "--answer-col",
         default="answer",
@@ -222,14 +222,8 @@ def main():
     parser.add_argument(
         "--bin-size",
         type=float,
-        default=6.0,
+        default=5.0,
         help="Bin size for continuous answer (default: 5.0)",
-    )
-    parser.add_argument(
-        "--scenario_analysis", 
-        type=bool, 
-        default=False, 
-        help="Analyse all other traits based on Scenario",
     )
 
     args = parser.parse_args()
