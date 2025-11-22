@@ -34,16 +34,26 @@ def build_model(model_name):
     return client
 
 
-def ask_llm(client, model, msgs, temperature=1.0, top_p=1.0, max_tokens=4096):
+def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="high", max_tokens=4096):
     try:
-        if model.startswith("o"):
-            response = client.chat.completions.create(
+        if model.startswith("gpt-5") or model.startswith("o"):
+            response = client.responses.create(
                 model=model,
-                messages=msgs,
+                input=msgs,
+                max_output_tokens=max_tokens,
+                reasoning={"effort": reasoning}
+            )
+            return response.output[-1].content[0].text, ""
+        elif model in openai_models:
+            response = client.responses.create(
+                model=model,
+                input=msgs,
+                max_output_tokens=max_tokens,
                 temperature=temperature,
                 top_p=top_p
             )
-        else:
+            return response.output[-1].content[0].text, ""
+        elif model in together_models:
             response = client.chat.completions.create(
                 model=model,
                 messages=msgs,
@@ -51,7 +61,7 @@ def ask_llm(client, model, msgs, temperature=1.0, top_p=1.0, max_tokens=4096):
                 top_p=top_p,
                 max_tokens=max_tokens
             )
-        return response.choices[0].message.content, response.choices[0].message.reasoning
+            return response.choices[0].message.content, response.choices[0].message.reasoning
     except Exception as e:
         return f"[ERROR calling model]: {e}"
 
