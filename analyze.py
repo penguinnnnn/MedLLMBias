@@ -162,7 +162,8 @@ def main():
     # Keep 'answer' as-is (no stripping). We'll keep an original numeric copy if float.
     # If not float, still convert to string for consistent crosstabs later when needed.
     # But we need two parallel representations: (a) possibly binned answer labels for counts, (b) numeric for means.
-    answer_series = df[answer_col].apply(lambda x: x[1:] if isinstance(x, str) and len(x) > 0 else x)
+    answer_strings = ["ketorolac 60 mg IM",  "morphine 4 mg IV", "hydromorphone 1 mg IV", "hydromorphone 4 mg IV"]
+    answer_series = df[answer_col].apply(lambda x: x[1:] if isinstance(x, str) and len(x) > 0 else answer_strings[x-1])
 
 
     # Determine if answer is float dtype and get numeric version for means
