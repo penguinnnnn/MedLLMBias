@@ -16,6 +16,8 @@ _GENDER = ["Male", "Female"]
 _SO = ["hetro", "homo"]
 _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
 _PERCENT = [1, .75, .5, .25]
+_NUM_STIG = [1, 3, 6]
+_NUMBER = True
 _TEST = ["pain", "pass"]
 _COT = False
 RETRY_NUM = 10
@@ -24,7 +26,7 @@ MODEL = 'gpt-4.1-2025-04-14'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
-BASE_DIR = f'results/{NAME_IN_PATH}'
+BASE_DIR = f'results_number/{NAME_IN_PATH}'
 COT_STRING = "_COT" if _COT else ""
 os.makedirs(BASE_DIR, exist_ok=True)
 
@@ -192,7 +194,10 @@ def construct_scenario(scenario_type, stig_amount=1.0):
         stig_lang_type = []
     stig_target = [s for s in sentence_versions if sentence_versions[s]["Type"] in stig_lang_type]
     stig_num = round(stig_amount * len(stig_target))
-    stig_lang = random.sample(stig_target, stig_num)
+    if _NUMBER and len(stig_target) < stig_amount:
+        stig_lang = []
+    else:
+        stig_lang = random.sample(stig_target, stig_amount if _NUMBER else stig_num)
     scenario_sentences = {s: sentence_versions[s]["Stigmatizing"] if s in stig_lang else sentence_versions[s]["Neutral"] for s in sentence_versions}
 
     scenario = f"{configurable_scenario}"
@@ -260,10 +265,13 @@ def run_test():
                     for g in _GENDER:
                         for s in _SO:
                             for l in _LANGUAGE:
-                                for p in _PERCENT:
+                                # for p in _PERCENT:
+                                for p in _NUM_STIG:
                                     if l == "Neutral" and p != 1:
                                         break
-                                    print(f"{l}-{p},{n},{a},{r},{g},{s}")
+                                    if l == "Stigmatizing_Blame" and p != 1:
+                                        break
+                                    # print(f"{l}-{p},{n},{a},{r},{g},{s}")
                                     scenario = construct_scenario(l, p)
                                     messages, order, order_back = construct_prompt(scenario, t, n, a, r, g, s)
                                     input(messages)
@@ -288,7 +296,7 @@ def run_test():
                                             print(f"Failed: {e}; Attempt {attempt+1} failed; retrying...")
                                             time.sleep(1)
     
-                                    print(answer)
+                                    # print(answer)
                                     with open(FILENAME, 'a') as f:
                                         write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
                                         f.write(f"{l}-{p},{n},{a},{r},{g},{s},{write_answer}\n")
