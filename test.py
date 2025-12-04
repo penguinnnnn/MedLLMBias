@@ -15,8 +15,8 @@ _RACE = ["Black"]
 _GENDER = ["Man", "Woman"]
 _SO = ["hetro", "homo"]
 _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
-_NUM_STIG = [1, 4, 7]
-_NUMBER = True
+_NUM_STIG = [1, 4, 7, 14, 21]
+_NUM_PER_CAT = 7
 _TEST = ["pain", "pass"]
 _COT = False
 RETRY_NUM = 10
@@ -184,7 +184,7 @@ def random_time(start_hour: int, end_hour: int) -> str:
     return f"{hour:02d}:{minute:02d}", f"{hour+1:02d}:{minute:02d}"
 
 
-def construct_scenario(scenario_type, stig_amount=1.0):
+def construct_scenario(scenario_type, stig_num=100000):
     if "_" in scenario_type:
         stig_lang_type = [scenario_type.split("_")[-1]]
     elif scenario_type == "Stigmatizing":
@@ -192,11 +192,8 @@ def construct_scenario(scenario_type, stig_amount=1.0):
     elif scenario_type == "Neutral":
         stig_lang_type = []
     stig_target = [s for s in sentence_versions if sentence_versions[s]["Type"] in stig_lang_type]
-    stig_num = round(stig_amount * len(stig_target))
-    if _NUMBER and len(stig_target) < stig_amount:
-        stig_lang = []
-    else:
-        stig_lang = random.sample(stig_target, stig_amount if _NUMBER else stig_num)
+    stig_num = min(stig_num, len(stig_target))
+    stig_lang = random.sample(stig_target, stig_num)
     scenario_sentences = {s: sentence_versions[s]["Stigmatizing"] if s in stig_lang else sentence_versions[s]["Neutral"] for s in sentence_versions}
 
     scenario = f"{configurable_scenario}"
@@ -224,7 +221,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
             partner = "boyfriend"
     time1, time2 = random_time(12, 14)
     messages.append({"role": "user", "content": scenario.replace("<NAME>", name).replace("<AGE>", age).replace("<RACE>", race).replace("<GENDER>", gender).replace("<PRONOUN_1>", pronoun[0]).replace("<PRONOUN_2>", pronoun[1]).replace("<PRONOUN_3>", pronoun[2]).replace("<PRONOUN_4>", pronoun[3]).replace("<PARTNER>", partner).replace("<TIME_1>", time1).replace("<TIME_2>", time2)})
-    
+
     if test_name == "pain":
         order = random.sample([i for i in range(len(test_pain[1]))], len(test_pain[1]))
         order_back = None
@@ -232,7 +229,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
         choices = "\n".join([f"{a+1}. {test_pain[1][b]}" for a, b in enumerate(order)])
         thinking_string = test_pain[2] if _COT else test_pain[3]
         messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
-    
+
     if test_name == "pass":
         pass_string = ""
         order = None
@@ -256,8 +253,8 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
 def run_test():
     for t in _TEST:
         FILENAME = os.path.join(BASE_DIR, f'{t}{COT_STRING}.csv')
-        # with open(FILENAME, 'w') as f:
-        #     f.write("Scenario,Name,Age,Race,Gender,SO,answer\n")
+        with open(FILENAME, 'w') as f:
+            f.write("Scenario,Name,Age,Race,Gender,SO,answer\n")
         for n in _NAME:
             for a in _AGE:
                 for r in _RACE:
@@ -267,10 +264,12 @@ def run_test():
                                 for p in _NUM_STIG:
                                     if l == "Neutral" and p != 1:
                                         break
-                                    # print(f"{l}-{p},{n},{a},{r},{g},{s}")
+                                    if "_" in l and p > _NUM_PER_CAT:
+                                        break
+                                    print(f"{l}-{p},{n},{a},{r},{g},{s}")
                                     scenario = construct_scenario(l, p)
                                     messages, order, order_back = construct_prompt(scenario, t, n, a, r, g, s)
-                                    # input(messages)
+                                    print(messages)
                                     response, answer, reasoning = "", "", ""
                                     for attempt in range(RETRY_NUM):
                                         try:
@@ -292,7 +291,7 @@ def run_test():
                                             print(f"Failed: {e}; Attempt {attempt+1} failed; retrying...")
                                             time.sleep(1)
     
-                                    # print(answer)
+                                    print(answer)
                                     with open(FILENAME, 'a') as f:
                                         write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
                                         f.write(f"{l}-{p},{n},{a},{r},{g},{s},{write_answer}\n")
