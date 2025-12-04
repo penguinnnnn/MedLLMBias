@@ -35,11 +35,6 @@ sentence_versions = {
         "Stigmatizing": "stating <PRONOUN_1> has",
         "Type": "Doubt"
     },
-    "<CONFIG_21>": {
-        "Neutral": "in <PRONOUN_4> arms and legs.",
-        "Stigmatizing": "“all up in my arms and legs.”",
-        "Type": "Stereotyping"
-    },
     "<CONFIG_2>": {
         "Neutral": "has about 8–10 pain crises per year, for which <PRONOUN_1> typically requires opioid pain medication in the ED",
         "Stigmatizing": "is narcotic dependent and in our ED frequently",
@@ -134,6 +129,11 @@ sentence_versions = {
         "Neutral": "Physical exam is difficult due to severe pain but",
         "Stigmatizing": "He is uncooperative with the physical exam, which is",
         "Type": "Blame"
+    },
+    "<CONFIG_21>": {
+        "Neutral": "in <PRONOUN_4> arms and legs.",
+        "Stigmatizing": "“all up in my arms and legs.”",
+        "Type": "Stereotyping"
     },
 }
 
