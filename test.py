@@ -294,7 +294,7 @@ def run_test():
                                     print(answer)
                                     with open(FILENAME, 'a') as f:
                                         write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
-                                        f.write(f"{l}-{p},{n},{a},{r},{g},{s},{write_answer}\n")
+                                        f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
                                     with open(FILENAME.replace('.csv', '_reasoning.txt'), 'a') as f:
                                         if reasoning == "":
                                             reasoning = response_text
