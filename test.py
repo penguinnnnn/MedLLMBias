@@ -17,11 +17,11 @@ _SO = ["hetro", "homo"]
 _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
-_TEST = ["pain", "pass"]
+_TEST = ["pass"]
 _COT = False
 RETRY_NUM = 10
 
-MODEL = 'gpt-4.1-2025-04-14'
+MODEL = 'gpt-5-mini-2025-08-07'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
@@ -294,7 +294,7 @@ def run_test():
                                     print(answer)
                                     with open(FILENAME, 'a') as f:
                                         write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
-                                        f.write(f"{l}-{p},{n},{a},{r},{g},{s},{write_answer}\n")
+                                        f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
                                     with open(FILENAME.replace('.csv', '_reasoning.txt'), 'a') as f:
                                         if reasoning == "":
                                             reasoning = response_text

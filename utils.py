@@ -8,7 +8,7 @@ import re
 
 # === Determine backend ===
 openai_models = [
-    "gpt-5-mini-2025-08-07", "gpt-4.1-2025-04-14"
+    "gpt-5.1-2025-11-13", "gpt-4.1-2025-04-14", "gpt-5-mini-2025-08-07"
 ]
 
 together_models = [
@@ -34,13 +34,14 @@ def build_model(model_name):
     return client
 
 
-def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="high", max_tokens=4096):
+def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", max_tokens=4096):
     try:
         if model.startswith("gpt-5") or model.startswith("o"):
             response = client.responses.create(
                 model=model,
                 input=msgs,
                 max_output_tokens=max_tokens,
+                temperature=temperature,
                 reasoning={"effort": reasoning}
             )
             return response.output[-1].content[0].text, ""
