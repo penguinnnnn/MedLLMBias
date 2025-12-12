@@ -21,7 +21,7 @@ _TEST = ["pass"]
 _COT = False
 RETRY_NUM = 10
 
-MODEL = 'gpt-5-mini-2025-08-07'
+MODEL = 'gpt-5.1-2025-11-13'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
@@ -294,7 +294,11 @@ def run_test():
                                     print(answer)
                                     with open(FILENAME, 'a') as f:
                                         write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
-                                        f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
+                                        if t == 'pain':
+                                            f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
+                                        elif t == 'pass':
+                                            sum_score = sum(answer)
+                                            f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{sum_score},{write_answer}\n")
                                     with open(FILENAME.replace('.csv', '_reasoning.txt'), 'a') as f:
                                         if reasoning == "":
                                             reasoning = response_text

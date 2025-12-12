@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 from openai import OpenAI
 from together import Together
+from google import genai
+from google.genai import types
+import anthropic
 import os
 import re
 
@@ -8,7 +11,7 @@ import re
 
 # === Determine backend ===
 openai_models = [
-    "gpt-5.1-2025-11-13", "gpt-4.1-2025-04-14", "gpt-5-mini-2025-08-07"
+    "gpt-5.1-2025-11-13", "gpt-4.1-2025-04-14"
 ]
 
 together_models = [
@@ -16,11 +19,21 @@ together_models = [
     "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
 ]
 
+google_models = [
+    "gemini-2.5-flash-preview-09-2025"
+]
+
+anthropic_models = [
+    "claude-sonnet-4-5"
+]
+
 
 # === Load API keys from .env ===
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 
 def build_model(model_name):
@@ -29,6 +42,11 @@ def build_model(model_name):
     elif model_name in together_models:
         os.environ["TOGETHER_API_KEY"] = TOGETHER_API_KEY
         client = Together()
+    elif model_name in google_models:
+        client = OpenAI(api_key=GOOGLE_API_KEY, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+    elif model_name in anthropic_models:
+        os.environ["ANTHROPIC_API_KEY"] = ANTHROPIC_API_KEY
+        client = anthropic.Anthropic()
     else:
         raise ValueError("❌ WRONG MODEL NAME!")
     return client
@@ -41,11 +59,10 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", m
                 model=model,
                 input=msgs,
                 max_output_tokens=max_tokens,
-                temperature=temperature,
                 reasoning={"effort": reasoning}
             )
             return response.output[-1].content[0].text, ""
-        elif model in openai_models:
+        elif model in openai_models or model in google_models:
             response = client.responses.create(
                 model=model,
                 input=msgs,
@@ -63,6 +80,14 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", m
                 max_tokens=max_tokens
             )
             return response.choices[0].message.content, response.choices[0].message.reasoning
+        elif model in anthropic_models:
+            response = client.messages.create(
+                model=model,
+                messages=msgs,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            return response.content[0].text, ""
     except Exception as e:
         return f"[ERROR calling model]: {e}"
 
