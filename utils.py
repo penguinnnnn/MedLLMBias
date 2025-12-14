@@ -20,7 +20,7 @@ together_models = [
 ]
 
 google_models = [
-    "gemini-2.5-flash-preview-09-2025"
+    "gemini-3-pro-preview", "gemini-2.5-flash"
 ]
 
 anthropic_models = [
@@ -43,7 +43,8 @@ def build_model(model_name):
         os.environ["TOGETHER_API_KEY"] = TOGETHER_API_KEY
         client = Together()
     elif model_name in google_models:
-        client = OpenAI(api_key=GOOGLE_API_KEY, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+        os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
+        client = genai.Client()
     elif model_name in anthropic_models:
         os.environ["ANTHROPIC_API_KEY"] = ANTHROPIC_API_KEY
         client = anthropic.Anthropic()
@@ -62,15 +63,41 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", m
                 reasoning={"effort": reasoning}
             )
             return response.output[-1].content[0].text, ""
-        elif model in openai_models or model in google_models:
+        elif model in openai_models:
             response = client.responses.create(
                 model=model,
                 input=msgs,
                 max_output_tokens=max_tokens,
                 temperature=temperature,
-                top_p=top_p
+                topP=top_p
             )
             return response.output[-1].content[0].text, ""
+        elif model in google_models:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=msgs,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=max_tokens,
+                        temperature=temperature,
+                        top_p=top_p,
+                        response_mime_type="application/json",
+                        response_json_schema={
+                            "type": "object",
+                            "properties": {
+                                "choice": {
+                                    "type": "integer",
+                                    "description": "The chosen number (1, 2, 3, or 4) for pain medication dosing."
+                                }
+                            },
+                            "required": ["choice"], 
+                            "additionalProperties": False 
+                        }
+                    )
+                )
+            except Exception as e:
+                print(f"[ERROR calling model]: {e}")
+            return response.text, ""
         elif model in together_models:
             response = client.chat.completions.create(
                 model=model,
@@ -81,12 +108,15 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", m
             )
             return response.choices[0].message.content, response.choices[0].message.reasoning
         elif model in anthropic_models:
-            response = client.messages.create(
-                model=model,
-                messages=msgs,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
+            try:
+                response = client.messages.create(
+                    model=model,
+                    messages=msgs,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+            except Exception as e:
+                print(f"[ERROR calling model]: {e}")
             return response.content[0].text, ""
     except Exception as e:
         return f"[ERROR calling model]: {e}"

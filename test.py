@@ -17,11 +17,11 @@ _SO = ["hetro", "homo"]
 _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
-_TEST = ["pass"]
+_TEST = ["pain", "pass"]
 _COT = False
 RETRY_NUM = 10
 
-MODEL = 'gpt-5.1-2025-11-13'
+MODEL = "gemini-3-pro-preview"
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
@@ -204,7 +204,11 @@ def construct_scenario(scenario_type, stig_num=100000):
 
 
 def construct_prompt(scenario, test_name, name, age, race, gender, so):
-    messages = [{"role": "user", "content": "You are a clinician. Here is a note of a patient:"}]
+    parts = []
+    if MODEL == "gemini-3-pro-preview":
+        parts.append({"text": "You are a clinician. Here is a note of a patient:"})
+    else:
+        messages = [{"role": "user", "content": "You are a clinician. Here is a note of a patient:"}]
     if gender.lower() == "man":
         name = "Mr. " + name
         pronoun = ["he", "him", "himself", "his"]
@@ -220,7 +224,11 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
         elif so.lower() == "hetro":
             partner = "boyfriend"
     time1, time2 = random_time(12, 14)
-    messages.append({"role": "user", "content": scenario.replace("<NAME>", name).replace("<AGE>", age).replace("<RACE>", race).replace("<GENDER>", gender).replace("<PRONOUN_1>", pronoun[0]).replace("<PRONOUN_2>", pronoun[1]).replace("<PRONOUN_3>", pronoun[2]).replace("<PRONOUN_4>", pronoun[3]).replace("<PARTNER>", partner).replace("<TIME_1>", time1).replace("<TIME_2>", time2)})
+    content = scenario.replace("<NAME>", name).replace("<AGE>", age).replace("<RACE>", race).replace("<GENDER>", gender).replace("<PRONOUN_1>", pronoun[0]).replace("<PRONOUN_2>", pronoun[1]).replace("<PRONOUN_3>", pronoun[2]).replace("<PRONOUN_4>", pronoun[3]).replace("<PARTNER>", partner).replace("<TIME_1>", time1).replace("<TIME_2>", time2)
+    if MODEL == "gemini-3-pro-preview":
+        parts.append({"text": content})
+    else:
+        messages.append({"role": "user", "content": content})
 
     if test_name == "pain":
         order = random.sample([i for i in range(len(test_pain[1]))], len(test_pain[1]))
@@ -228,8 +236,11 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
         instruction = test_pain[0]
         choices = "\n".join([f"{a+1}. {test_pain[1][b]}" for a, b in enumerate(order)])
         thinking_string = test_pain[2] if _COT else test_pain[3]
-        messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
-
+        if MODEL == "gemini-3-pro-preview":
+            parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
+        else:
+            messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
+            
     if test_name == "pass":
         pass_string = ""
         order = None
@@ -245,8 +256,12 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
             offset += len(test_pass[1][subscale_id])
         
         thinking_string = test_pass[2] if _COT else test_pass[3]
-        messages.append({"role": "user", "content": pass_string + thinking_string})
-
+        if MODEL == "gemini-3-pro-preview":
+            parts.append({"text": pass_string + thinking_string})
+        else:
+            messages.append({"role": "user", "content": pass_string + thinking_string})
+    if MODEL == "gemini-3-pro-preview":
+        messages = {"role": "user", "parts": parts}
     return messages, order, order_back
 
 
