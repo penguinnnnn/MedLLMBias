@@ -12,20 +12,20 @@ import random
 
 # === Determine backend ===
 openai_models = [
-    "gpt-5.1-2025-11-13", "gpt-4.1-2025-04-14"
+    "gpt-5.4-2026-03-05"
 ]
 
 together_models = [
-    "Qwen/Qwen3-235B-A22B-Instruct-2507-tput", "deepseek-ai/DeepSeek-V3.1", "zai-org/GLM-4.6", "moonshotai/Kimi-K2-Instruct-0905",
-    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "Qwen/Qwen3.5-397B-A17B", "deepseek-ai/DeepSeek-V3.1", "zai-org/GLM-5", "moonshotai/Kimi-K2.5",
+    "MiniMaxAI/MiniMax-M2.5", "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
 ]
 
 google_models = [
-    "gemini-3-pro-preview", "gemini-3-flash"
+    "gemini-3-flash-preview"
 ]
 
 anthropic_models = [
-    "claude-sonnet-4-5"
+    "claude-sonnet-4-6"
 ]
 
 
@@ -54,14 +54,14 @@ def build_model(model_name):
     return client
 
 
-def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", max_tokens=4096):
+def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, max_tokens=4096):
     try:
         if model.startswith("gpt-5") or model.startswith("o"):
             response = client.responses.create(
                 model=model,
                 input=msgs,
                 max_output_tokens=max_tokens,
-                reasoning={"effort": reasoning}
+                reasoning={"effort": "none"} # none, low, medium, high
             )
             return response.output[-1].content[0].text, ""
         elif model in openai_models:
@@ -82,18 +82,7 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", m
                         max_output_tokens=max_tokens,
                         temperature=temperature,
                         top_p=top_p,
-                        response_mime_type="application/json",
-                        response_json_schema={
-                            "type": "object",
-                            "properties": {
-                                "choice": {
-                                    "type": "integer",
-                                    "description": "The chosen number (1, 2, 3, or 4) for pain medication dosing."
-                                }
-                            },
-                            "required": ["choice"], 
-                            "additionalProperties": False 
-                        }
+                        thinking_config=types.ThinkingConfig(thinking_level="minimal") # minimal, low, medium, high
                     )
                 )
             except Exception as e:
@@ -103,6 +92,8 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", m
             response = client.chat.completions.create(
                 model=model,
                 messages=msgs,
+                reasoning={"enabled": False},
+                # reasoning_effort="low", # low, medium, high
                 temperature=temperature,
                 top_p=top_p,
                 max_tokens=max_tokens
@@ -115,6 +106,8 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, reasoning="none", m
                     messages=msgs,
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    thinking={"type": "disabled"},
+                    # output_config={"effort": "low"},  # low, medium, high, max
                 )
             except Exception as e:
                 print(f"[ERROR calling model]: {e}")

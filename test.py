@@ -21,7 +21,7 @@ _COT = False
 _DEBIAS = False
 RETRY_NUM = 10
 
-MODEL = 'Qwen/Qwen3-235B-A22B-Instruct-2507-tput'
+MODEL = 'Qwen/Qwen3.5-397B-A17B'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
