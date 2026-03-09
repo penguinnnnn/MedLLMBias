@@ -6,6 +6,7 @@ from google.genai import types
 import anthropic
 import os
 import re
+import random
 
 
 
@@ -98,3 +99,45 @@ def extract_last_json(s):
     if matches:
         return matches[-1]
     return s
+
+
+def random_time(start_hour: int, end_hour: int) -> str:
+    if not (0 <= start_hour < 24 and 0 < end_hour <= 24 and start_hour < end_hour):
+        raise ValueError("(0 <= start_hour < end_hour <= 24)")
+
+    hour = random.randint(start_hour, end_hour - 1)
+    minute = random.randint(0, 59)
+    return f"{hour:02d}:{minute:02d}", f"{hour+1:02d}:{minute:02d}"
+
+
+def debias(scenario):
+    messages = [{"role": "user", "content": """### Role
+You are a physician with expertise in clinical communication and a commitment to ensure all patients are treated with dignity. Your task is to rewrite medical notes to remove language that may stigmatize patients while maintaining clinical accuracy.
+
+### Definitions of Stigmatizing Language
+You must identify and debias the following three types of stigmatizing language:
+1. **Blame**: Language that implies the patient is responsible for their condition or health outcomes, often using judgmental qualifiers that characterize the patient as irresponsible for not accepting, not following, or actively resisting medical recommendations.
+2. **Doubt**: Language that undermines a patient’s credibility by implying skepticism regarding a patient’s reported symptoms, experiences, or behaviors, often portraying the patient as untruthful, exaggerating,  or providing unreliable information.
+3. **Maligning character**: Descriptions that portray the patient as frustrating, difficult to interact with, or socially undesirable. This includes unnecessary social, economic, or demographic details that are not clinically relevant but may trigger generalized assumptions or negative biases about the patient.
+
+### Instructions
+1. **Debias through Paraphrasing**: Rewrite the provided medical note to remove stigmatizing language. Use neutral language that focuses on facts rather than negative characterizations of the patient.
+2. **Clinical Information Retention**: Do not omit important clinical information. Every clinically relevant fact present in the original note should be preserved in the output. You may only remove language that is stigmatizing and clinically irrelevant. Information that is clinically important to include but that may be communicated in a stigmatizing way can be rephrased but not removed. 
+3. **Zero Hallucination & No Additions**: Do not add any new descriptions, interpretations, or information that is not explicitly stated in the original note. Every word in your output must have a direct correspondence to the facts in the input.
+4. **Output Format**: Provide only the debiased version of the note.
+
+### Input Note
+""" + scenario}]
+    for attempt in range(RETRY_NUM):
+        try:
+            response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
+            if len(response_text) > 100:
+                with open('results/gpt-4.1-2025-04-14/original.txt', 'a') as f:
+                    f.write(f"{scenario}\n\n\n====================\n\n\n")
+                with open('results/gpt-4.1-2025-04-14/debiased.txt', 'a') as f:
+                    f.write(f"{response_text}\n\n\n====================\n\n\n")
+                break
+        except Exception as e:
+            print(f"Failed: {e}; Attempt {attempt+1} failed; retrying...")
+            time.sleep(1)
+    return response_text
