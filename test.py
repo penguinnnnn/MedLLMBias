@@ -2,21 +2,25 @@ import json
 import random
 import os
 import time
+import argparse
 from utils import *
 from vignettes import *
 
 
 # === Configuration ===
 _NAME = ["F", "L", "R", "X"]
-_AGE = ["44", "45", "46", "47"] # "25", "26", "27", "28", "29", "30", "31"
+_AGE = ["38", "39", "40", "41", "42", "43", "44", "45"] # "25", "26", "27", "28", "29", "30", "31" - SCD
+# "44", "45", "46", "47" - obesity
+# ["38", "39", "40", "41", "42", "43", "44", "45"] - fibromyalgia
+# ["48", "49", "50", "51", "52", "53", "54", "55"] - cirrhosis
 _RACE = ["Black", "White", "Asian", "Hispanic"]
 _GENDER = ["Man", "Woman"]
 _SO = ["hetro"] # "hetro", "homo"
 _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
-_DISEASE = ["Obesity"] # "SCD", "Obesity"
-_TEST = ["knee", "pass"] # "pain", "pass", "knee"
+_DISEASE = ["Fibromyalgia"] # "SCD", "Obesity", "Fibromyalgia", "Cirrhosis"
+_TEST = ["fib", "pass"] # "pain", "pass", "knee", "fib", "cirr"
 _COT = False
 _DEBIAS = False
 RETRY_NUM = 10
@@ -84,22 +88,24 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
         instruction = test_pain[0]
         choices = "\n".join([f"{a+1}. {test_pain[1][b]}" for a, b in enumerate(order)])
         thinking_string = test_pain[2] if _COT else test_pain[3]
-        if MODEL.startswith("gemini"):
-            parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
-        else:
-            messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
-
     elif test_name == "knee":
         order = random.sample([i for i in range(len(test_knee[1]))], len(test_knee[1]))
         order_back = None
         instruction = test_knee[0]
         choices = "\n".join([f"{a+1}. {test_knee[1][b]}" for a, b in enumerate(order)])
         thinking_string = test_knee[2] if _COT else test_knee[3]
-        if MODEL.startswith("gemini"):
-            parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
-        else:
-            messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
-
+    elif test_name == "fib":
+        order = random.sample([i for i in range(len(test_fib[1]))], len(test_fib[1]))
+        order_back = None
+        instruction = test_fib[0]
+        choices = "\n".join([f"{a+1}. {test_fib[1][b]}" for a, b in enumerate(order)])
+        thinking_string = test_fib[2] if _COT else test_fib[3]
+    elif test_name == "cirr":
+        order = random.sample([i for i in range(len(test_cirr[1]))], len(test_cirr[1]))
+        order_back = None
+        instruction = test_cirr[0]
+        choices = "\n".join([f"{a+1}. {test_cirr[1][b]}" for a, b in enumerate(order)])
+        thinking_string = test_cirr[2] if _COT else test_cirr[3]
     elif test_name == "pass":
         pass_string = ""
         order = None
@@ -113,12 +119,17 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
             pass_string += test_pass[0][subscale_id] + "\n" + "\n".join([f"{a+1+offset}. {test_pass[1][subscale_id][b]}" for a, b in enumerate(order_s)]) + "\n\n"
             order_back += [i + offset for i in order_back_s]
             offset += len(test_pass[1][subscale_id])
-        
         thinking_string = test_pass[2] if _COT else test_pass[3]
+    if test_name == "pass":
         if MODEL.startswith("gemini"):
             parts.append({"text": pass_string + thinking_string})
         else:
             messages.append({"role": "user", "content": pass_string + thinking_string})
+    else:
+        if MODEL.startswith("gemini"):
+            parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
+        else:
+            messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
     if MODEL.startswith("gemini"):
         messages = {"role": "user", "parts": parts}
     return messages, order, order_back
@@ -150,8 +161,8 @@ def run_test():
                                         response, answer, reasoning = "", "", ""
                                         for attempt in range(RETRY_NUM):
                                             try:
-                                                response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
-                                                response = json.loads(extract_last_json(response_text))
+                                                # response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
+                                                # response = json.loads(extract_last_json(response_text))
                                                 if t == "pain":
                                                     answer = int(response.get("choice", -1))
                                                     if answer != -1:
@@ -188,7 +199,6 @@ def run_test():
                                             if reasoning == "":
                                                 reasoning = response_text
                                             f.write(f"{reasoning}\n\n\n====================\n\n\n")
-
 
 if __name__ == "__main__":
     run_test()
