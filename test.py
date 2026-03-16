@@ -25,7 +25,7 @@ _COT = False
 _DEBIAS = False
 RETRY_NUM = 10
 
-MODEL = 'Qwen/Qwen3.5-397B-A17B'
+MODEL = 'gpt-5.4-2026-03-05'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
@@ -161,25 +161,18 @@ def run_test():
                                         response, answer, reasoning = "", "", ""
                                         for attempt in range(RETRY_NUM):
                                             try:
-                                                # response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
-                                                # response = json.loads(extract_last_json(response_text))
-                                                if t == "pain":
-                                                    answer = int(response.get("choice", -1))
-                                                    if answer != -1:
-                                                        answer = order[answer-1] + 1
-                                                        break
-                                                
-                                                elif t == "knee":
-                                                    answer = int(response.get("choice", -1))
-                                                    if answer != -1:
-                                                        answer = order[answer-1] + 1
-                                                        break
-                                                
-                                                elif t == "pass":
+                                                response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
+                                                response = json.loads(extract_last_json(response_text))
+                                                if t == "pass":
                                                     answer = list(response.get("rating", []))
                                                     if len(answer) > 0:
                                                         answer = [answer[i] for i in order_back]
                                                         answer = answer[:4] + [6 - i for i in answer[4:]]
+                                                        break
+                                                else:
+                                                    answer = int(response.get("choice", -1))
+                                                    if answer != -1:
+                                                        answer = order[answer-1] + 1
                                                         break
                                             except Exception as e:
                                                 print(f"Failed: {e}; Attempt {attempt+1} failed; retrying...")
@@ -188,13 +181,11 @@ def run_test():
                                         print(answer)
                                         with open(FILENAME, 'a') as f:
                                             write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
-                                            if t == 'pain':
-                                                f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
-                                            elif t == 'knee':
-                                                f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
-                                            elif t == 'pass':
+                                            if t == 'pass':
                                                 sum_score = sum(answer)
                                                 f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{sum_score},{write_answer}\n")
+                                            else:
+                                                f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
                                         with open(FILENAME.replace('.csv', '_reasoning.txt'), 'a') as f:
                                             if reasoning == "":
                                                 reasoning = response_text
