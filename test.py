@@ -7,25 +7,27 @@ from vignettes import *
 
 
 # === Configuration ===
-_NAME = ["F", "L", "R", "X"]
-_AGE = ["44", "45", "46", "47"] # "25", "26", "27", "28", "29", "30", "31"
-_RACE = ["Black", "White", "Asian", "Hispanic"]
-_GENDER = ["Man", "Woman"]
-_SO = ["hetro"] # "hetro", "homo"
-_LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
+_NAME = ["R"] # "F", "L", "R", "X"
+_AGE = ["32"] # "25", "26", "27", "28", "29", "30", "31", "32", "44", "45", "46", "47"
+_RACE = ["Black"] # "Black", "White", "Asian", "Hispanic"
+_GENDER = ["Woman"] # 'Man', 'Woman'
+_SO = ["homo"] # "hetro", "homo"
+_LANGUAGE = ["Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"] # "Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
-_DISEASE = ["Obesity"] # "SCD", "Obesity"
-_TEST = ["knee", "pass"] # "pain", "pass", "knee"
+_DISEASE = ["SCD"] # "SCD", "Obesity"
+_TEST = ["pass"] # "pain", "pass", "knee"
 _COT = False
 _DEBIAS = False
 RETRY_NUM = 10
 
-MODEL = 'Qwen/Qwen3.5-397B-A17B'
+MODEL = 'MiniMaxAI/MiniMax-M2.5'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
 COT_STRING = "cot" if _COT else "direct"
+if _DEBIAS:
+    COT_STRING += "_debias"
 
 
 def construct_scenario(disease, scenario_type, stig_num=100000):
@@ -83,7 +85,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
         order_back = None
         instruction = test_pain[0]
         choices = "\n".join([f"{a+1}. {test_pain[1][b]}" for a, b in enumerate(order)])
-        thinking_string = test_pain[2] if _COT else test_pain[3]
+        thinking_string = test_pain[2]
         if MODEL.startswith("gemini"):
             parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
         else:
@@ -94,7 +96,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
         order_back = None
         instruction = test_knee[0]
         choices = "\n".join([f"{a+1}. {test_knee[1][b]}" for a, b in enumerate(order)])
-        thinking_string = test_knee[2] if _COT else test_knee[3]
+        thinking_string = test_knee[2]
         if MODEL.startswith("gemini"):
             parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
         else:
@@ -114,7 +116,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
             order_back += [i + offset for i in order_back_s]
             offset += len(test_pass[1][subscale_id])
         
-        thinking_string = test_pass[2] if _COT else test_pass[3]
+        thinking_string = test_pass[2]
         if MODEL.startswith("gemini"):
             parts.append({"text": pass_string + thinking_string})
         else:
@@ -150,7 +152,7 @@ def run_test():
                                         response, answer, reasoning = "", "", ""
                                         for attempt in range(RETRY_NUM):
                                             try:
-                                                response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
+                                                response_text, reasoning = ask_llm(CLIENT, MODEL, messages, _COT)
                                                 response = json.loads(extract_last_json(response_text))
                                                 if t == "pain":
                                                     answer = int(response.get("choice", -1))

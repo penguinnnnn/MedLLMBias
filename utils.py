@@ -54,14 +54,14 @@ def build_model(model_name):
     return client
 
 
-def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, max_tokens=4096):
+def ask_llm(client, model, msgs, cot=False, temperature=0.0, top_p=1.0, max_tokens=4096):
     try:
         if model.startswith("gpt-5") or model.startswith("o"):
             response = client.responses.create(
                 model=model,
                 input=msgs,
                 max_output_tokens=max_tokens,
-                reasoning={"effort": "none"} # none, low, medium, high
+                reasoning={"effort": "high" if cot else "none"} # none, low, medium, high
             )
             return response.output[-1].content[0].text, ""
         elif model in openai_models:
@@ -82,7 +82,7 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, max_tokens=4096):
                         max_output_tokens=max_tokens,
                         temperature=temperature,
                         top_p=top_p,
-                        thinking_config=types.ThinkingConfig(thinking_level="minimal") # minimal, low, medium, high
+                        thinking_config=types.ThinkingConfig(thinking_level="high" if cot else "minimal") # minimal, low, medium, high
                     )
                 )
             except Exception as e:
@@ -92,8 +92,8 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, max_tokens=4096):
             response = client.chat.completions.create(
                 model=model,
                 messages=msgs,
-                reasoning={"enabled": False},
-                # reasoning_effort="low", # low, medium, high
+                reasoning={"enabled": cot},
+                reasoning_effort="high" if cot else "low", # low, medium, high
                 temperature=temperature,
                 top_p=top_p,
                 max_tokens=max_tokens
@@ -106,8 +106,7 @@ def ask_llm(client, model, msgs, temperature=0.0, top_p=1.0, max_tokens=4096):
                     messages=msgs,
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    thinking={"type": "disabled"},
-                    # output_config={"effort": "low"},  # low, medium, high, max
+                    output_config={"effort": "high" if cot else "low"},  # low, medium, high, max
                 )
             except Exception as e:
                 print(f"[ERROR calling model]: {e}")

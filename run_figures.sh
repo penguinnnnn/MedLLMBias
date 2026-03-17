@@ -1,27 +1,35 @@
-python analyze.py results/DeepSeek-V3.1/pain.csv --answer-type discrete
+# python analyze.py results/SCD/direct/claude-sonnet-4-6/pain.csv --answer-type discrete
 
-python analyze.py results/DeepSeek-V3.1/pass.csv --answer-type continuous
+# python analyze.py results/SCD/direct/claude-sonnet-4-6/pass.csv --answer-type continuous
 
-python analyze.py results/GLM-4.6/pain.csv --answer-type discrete
+# python analyze.py results/SCD/direct/DeepSeek-V3.1/pain.csv --answer-type discrete
 
-python analyze.py results/GLM-4.6/pass.csv --answer-type continuous
+# python analyze.py results/SCD/direct/DeepSeek-V3.1/pass.csv --answer-type continuous
 
-python analyze.py results/gpt-4.1-2025-04-14/pain.csv --answer-type discrete
+# python analyze.py results/SCD/direct/GLM-5/pain.csv --answer-type discrete
 
-python analyze.py results/gpt-4.1-2025-04-14/pass.csv --answer-type continuous
+# python analyze.py results/SCD/direct/GLM-5/pass.csv --answer-type continuous
 
-python analyze.py results/gpt-5.1-2025-11-13-none/pain.csv --answer-type discrete
+# python analyze.py results/SCD/direct/gemini-3-flash-preview/pain.csv --answer-type discrete
 
-python analyze.py results/gpt-5.1-2025-11-13-none/pass.csv --answer-type continuous
+# python analyze.py results/SCD/direct/gemini-3-flash-preview/pass.csv --answer-type continuous
 
-python analyze.py results/Kimi-K2-Instruct-0905/pain.csv --answer-type discrete
+# python analyze.py results/SCD/direct/gpt-5.4-2026-03-05/pain.csv --answer-type discrete
 
-python analyze.py results/Kimi-K2-Instruct-0905/pass.csv --answer-type continuous
+# python analyze.py results/SCD/direct/gpt-5.4-2026-03-05/pass.csv --answer-type continuous
 
-python analyze.py results/Llama-4-Maverick-17B-128E-Instruct-FP8/pain.csv --answer-type discrete
+# python analyze.py results/SCD/direct/Kimi-K2.5/pain.csv --answer-type discrete
 
-python analyze.py results/Llama-4-Maverick-17B-128E-Instruct-FP8/pass.csv --answer-type continuous
+# python analyze.py results/SCD/direct/Kimi-K2.5/pass.csv --answer-type continuous
 
-python analyze.py results/Qwen3-235B-A22B-Instruct-2507-tput/pain.csv --answer-type discrete
+# python analyze.py results/SCD/direct/Llama-4-Maverick-17B-128E-Instruct-FP8/pain.csv --answer-type discrete
 
-python analyze.py results/Qwen3-235B-A22B-Instruct-2507-tput/pass.csv --answer-type continuous
+# python analyze.py results/SCD/direct/Llama-4-Maverick-17B-128E-Instruct-FP8/pass.csv --answer-type continuous
+
+python analyze.py results/SCD/direct/MiniMax-M2.5/pain.csv --answer-type discrete
+
+python analyze.py results/SCD/direct/MiniMax-M2.5/pass.csv --answer-type continuous
+
+# python analyze.py results/SCD/direct/Qwen3.5-397B-A17B/pain.csv --answer-type discrete
+
+# python analyze.py results/SCD/direct/Qwen3.5-397B-A17B/pass.csv --answer-type continuous

@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-FEATURE_COLUMNS = ["Scenario", "Name", "Age", "Gender", "SO"]
+FEATURE_COLUMNS = ["Scenario", "Name", "Age", "Race", "Gender", "SO"]
 
 
 def read_data(csv_path: str) -> pd.DataFrame:
