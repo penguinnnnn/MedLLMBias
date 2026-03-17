@@ -2,26 +2,31 @@ import json
 import random
 import os
 import time
+import argparse
 from utils import *
 from vignettes import *
 
 
 # === Configuration ===
-_NAME = ["R"] # "F", "L", "R", "X"
-_AGE = ["32"] # "25", "26", "27", "28", "29", "30", "31", "32", "44", "45", "46", "47"
-_RACE = ["Black"] # "Black", "White", "Asian", "Hispanic"
-_GENDER = ["Woman"] # 'Man', 'Woman'
-_SO = ["homo"] # "hetro", "homo"
-_LANGUAGE = ["Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"] # "Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"
+_NAME = ["F", "L", "R", "X"]
+_AGE = ["38", "39", "40", "41", "42", "43", "44", "45"]
+# "25", "26", "27", "28", "29", "30", "31" - SCD
+# "44", "45", "46", "47" - obesity
+# ["38", "39", "40", "41", "42", "43", "44", "45"] - fibromyalgia
+# ["48", "49", "50", "51", "52", "53", "54", "55"] - cirrhosis
+_RACE = ["Black", "White", "Asian", "Hispanic"]
+_GENDER = ["Man", "Woman"]
+_SO = ["hetro"] # "hetro", "homo"
+_LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
-_DISEASE = ["SCD"] # "SCD", "Obesity"
-_TEST = ["pass"] # "pain", "pass", "knee"
+_DISEASE = ["Fibromyalgia"] # "SCD", "Obesity", "Fibromyalgia", "Cirrhosis"
+_TEST = ["fib", "pass"] # "pain", "pass", "knee", "fib", "cirr"
 _COT = False
 _DEBIAS = False
 RETRY_NUM = 10
 
-MODEL = 'MiniMaxAI/MiniMax-M2.5'
+MODEL = 'gpt-5.4-2026-03-05'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
@@ -80,29 +85,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
     else:
         messages.append({"role": "user", "content": scenario})
 
-    if test_name == "pain":
-        order = random.sample([i for i in range(len(test_pain[1]))], len(test_pain[1]))
-        order_back = None
-        instruction = test_pain[0]
-        choices = "\n".join([f"{a+1}. {test_pain[1][b]}" for a, b in enumerate(order)])
-        thinking_string = test_pain[2]
-        if MODEL.startswith("gemini"):
-            parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
-        else:
-            messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
-
-    elif test_name == "knee":
-        order = random.sample([i for i in range(len(test_knee[1]))], len(test_knee[1]))
-        order_back = None
-        instruction = test_knee[0]
-        choices = "\n".join([f"{a+1}. {test_knee[1][b]}" for a, b in enumerate(order)])
-        thinking_string = test_knee[2]
-        if MODEL.startswith("gemini"):
-            parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
-        else:
-            messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
-
-    elif test_name == "pass":
+    if test_name == "pass":
         pass_string = ""
         order = None
         order_back = []
@@ -121,6 +104,41 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
             parts.append({"text": pass_string + thinking_string})
         else:
             messages.append({"role": "user", "content": pass_string + thinking_string})
+
+    else:
+        if test_name == "pain":
+            order = random.sample([i for i in range(len(test_pain[1]))], len(test_pain[1]))
+            order_back = None
+            instruction = test_pain[0]
+            choices = "\n".join([f"{a+1}. {test_pain[1][b]}" for a, b in enumerate(order)])
+            thinking_string = test_pain[2]
+    
+        elif test_name == "knee":
+            order = random.sample([i for i in range(len(test_knee[1]))], len(test_knee[1]))
+            order_back = None
+            instruction = test_knee[0]
+            choices = "\n".join([f"{a+1}. {test_knee[1][b]}" for a, b in enumerate(order)])
+            thinking_string = test_knee[2]
+    
+        elif test_name == "fib":
+            order = random.sample([i for i in range(len(test_fib[1]))], len(test_fib[1]))
+            order_back = None
+            instruction = test_fib[0]
+            choices = "\n".join([f"{a+1}. {test_fib[1][b]}" for a, b in enumerate(order)])
+            thinking_string = test_fib[2]
+    
+        elif test_name == "cirr":
+            order = random.sample([i for i in range(len(test_cirr[1]))], len(test_cirr[1]))
+            order_back = None
+            instruction = test_cirr[0]
+            choices = "\n".join([f"{a+1}. {test_cirr[1][b]}" for a, b in enumerate(order)])
+            thinking_string = test_cirr[2]
+
+        if MODEL.startswith("gemini"):
+            parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
+        else:
+            messages.append({"role": "user", "content": f"{instruction}\n{choices}\n{thinking_string}"})
+
     if MODEL.startswith("gemini"):
         messages = {"role": "user", "parts": parts}
     return messages, order, order_back
@@ -154,23 +172,16 @@ def run_test():
                                             try:
                                                 response_text, reasoning = ask_llm(CLIENT, MODEL, messages, _COT)
                                                 response = json.loads(extract_last_json(response_text))
-                                                if t == "pain":
-                                                    answer = int(response.get("choice", -1))
-                                                    if answer != -1:
-                                                        answer = order[answer-1] + 1
-                                                        break
-                                                
-                                                elif t == "knee":
-                                                    answer = int(response.get("choice", -1))
-                                                    if answer != -1:
-                                                        answer = order[answer-1] + 1
-                                                        break
-                                                
-                                                elif t == "pass":
+                                                if t == "pass":
                                                     answer = list(response.get("rating", []))
                                                     if len(answer) > 0:
                                                         answer = [answer[i] for i in order_back]
                                                         answer = answer[:4] + [6 - i for i in answer[4:]]
+                                                        break
+                                                else:
+                                                    answer = int(response.get("choice", -1))
+                                                    if answer != -1:
+                                                        answer = order[answer-1] + 1
                                                         break
                                             except Exception as e:
                                                 print(f"Failed: {e}; Attempt {attempt+1} failed; retrying...")
@@ -179,18 +190,15 @@ def run_test():
                                         print(answer)
                                         with open(FILENAME, 'a') as f:
                                             write_answer = f"{answer}".replace("[", "").replace("]", "").replace(" ", "")
-                                            if t == 'pain':
-                                                f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
-                                            elif t == 'knee':
-                                                f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
-                                            elif t == 'pass':
+                                            if t == 'pass':
                                                 sum_score = sum(answer)
                                                 f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{sum_score},{write_answer}\n")
+                                            else:
+                                                f.write(f"{l}-{p:02d},{n},{a},{r},{g},{s},{write_answer}\n")
                                         with open(FILENAME.replace('.csv', '_reasoning.txt'), 'a') as f:
                                             if reasoning == "":
                                                 reasoning = response_text
                                             f.write(f"{reasoning}\n\n\n====================\n\n\n")
-
 
 if __name__ == "__main__":
     run_test()
