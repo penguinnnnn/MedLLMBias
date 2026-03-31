@@ -9,7 +9,7 @@ from vignettes import *
 
 # === Configuration ===
 _NAME = ["F", "L", "R", "X"]
-_AGE = ["38", "39", "40", "41", "42", "43", "44", "45"]
+_AGE = ["48", "49", "50", "51", "52", "53", "54", "55"]
 # "25", "26", "27", "28", "29", "30", "31" - SCD
 # "44", "45", "46", "47" - obesity
 # ["38", "39", "40", "41", "42", "43", "44", "45"] - fibromyalgia
@@ -20,13 +20,13 @@ _SO = ["hetro"] # "hetro", "homo"
 _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
-_DISEASE = ["Fibromyalgia"] # "SCD", "Obesity", "Fibromyalgia", "Cirrhosis"
-_TEST = ["fib", "pass"] # "pain", "pass", "knee", "fib", "cirr"
+_DISEASE = ["Cirrhosis"] # "SCD", "Obesity", "Fibromyalgia", "Cirrhosis"
+_TEST = ["cirr"] # "pain", "pass", "knee", "fib", "cirr"
 _COT = False
 _DEBIAS = False
 RETRY_NUM = 10
 
-MODEL = 'gpt-5.4-2026-03-05'
+MODEL = 'gemini-3-flash-preview'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
@@ -147,7 +147,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
 def run_test():
     for d in _DISEASE:
         for t in _TEST:
-            BASE_DIR = f'results/{d}/{COT_STRING}/{NAME_IN_PATH}/'
+            BASE_DIR = f'results/{d}/{COT_STRING}/new/{NAME_IN_PATH}/'
             os.makedirs(BASE_DIR, exist_ok=True)
             FILENAME = f'{BASE_DIR}/{t}.csv'
             with open(FILENAME, 'w') as f:
