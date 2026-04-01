@@ -26,9 +26,9 @@
 
 # python analyze.py results/SCD/direct/Llama-4-Maverick-17B-128E-Instruct-FP8/pass.csv --answer-type continuous
 
-python analyze.py results/SCD/direct/MiniMax-M2.5/pain.csv --answer-type discrete
+python analyze.py results/Fibromyalgia/direct/MiniMax-M2.5/fib.csv --answer-type discrete
 
-python analyze.py results/SCD/direct/MiniMax-M2.5/pass.csv --answer-type continuous
+python analyze.py results/Fibromyalgia/direct/MiniMax-M2.5/pass.csv --answer-type continuous
 
 # python analyze.py results/SCD/direct/Qwen3.5-397B-A17B/pain.csv --answer-type discrete
 

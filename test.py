@@ -8,9 +8,9 @@ from vignettes import *
 
 
 # === Configuration ===
-_NAME = ["F", "L", "R", "X"]
+_NAME = ["R", "X"]
 _AGE = ["38", "39", "40", "41", "42", "43", "44", "45"]
-# "25", "26", "27", "28", "29", "30", "31" - SCD
+# "25", "26", "27", "28", "29", "30", "31", "32" - SCD
 # "44", "45", "46", "47" - obesity
 # ["38", "39", "40", "41", "42", "43", "44", "45"] - fibromyalgia
 # ["48", "49", "50", "51", "52", "53", "54", "55"] - cirrhosis
@@ -21,12 +21,12 @@ _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blam
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
 _DISEASE = ["Fibromyalgia"] # "SCD", "Obesity", "Fibromyalgia", "Cirrhosis"
-_TEST = ["fib", "pass"] # "pain", "pass", "knee", "fib", "cirr"
+_TEST = ["pass"] # "pass", "pain", "knee", "fib", "cirr"
 _COT = False
 _DEBIAS = False
 RETRY_NUM = 10
 
-MODEL = 'gpt-5.4-2026-03-05'
+MODEL = 'MiniMaxAI/MiniMax-M2.5'
 CLIENT = build_model(MODEL)
 
 NAME_IN_PATH = MODEL.split("/")[-1]
