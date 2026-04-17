@@ -8,27 +8,37 @@ from vignettes import *
 
 
 # === Configuration ===
+
+# === Age ===
+# "25", "26", "27", "28", "29", "30", "31", "32" - SCD
+# "44", "45", "46", "47" - Obesity
+# "50", "51", "52", "53" - Cirrhosis
+# "40", "41", "42", "43" - Fibromyalgia
+# === Others ===
+# Name: "F", "L", "R", "X"
+# Race: "Black", "White", "Asian", "Hispanic" (Black only for SCD)
+# Gender: "Man", "Woman"
+# SO: "hetro", "homo" for SCD; hetro only for others
+# Disease: "SCD", "Obesity", "Cirrhosis", "Fibromyalgia"
+# Test: "pass", "pain", "knee", "cirr", "fib"
 _NAME = ["F", "L", "R", "X"]
 _AGE = ["40", "41", "42", "43"]
-# "25", "26", "27", "28", "29", "30", "31", "32" - SCD
-# "44", "45", "46", "47" - obesity
-# "40", "41", "42", "43" - fibromyalgia
-# "50", "51", "52", "53" - cirrhosis
-_RACE = ["Black", "White", "Asian", "Hispanic"] # "Black", "White", "Asian", "Hispanic"
+_RACE = ["Black", "White", "Asian", "Hispanic"]
 _GENDER = ["Man", "Woman"]
-_SO = ["hetro"] # "hetro", "homo"
+_SO = ["hetro"]
+_DISEASE = ["Fibromyalgia"]
+_TEST = ["fib", "pass"]
+
+MODEL = 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8'
+_COT = False
+_DEBIAS = False
+
 _LANGUAGE = ["Neutral", "Stigmatizing", "Stigmatizing_Doubt", "Stigmatizing_Blame", "Stigmatizing_Stereotyping"]
 _NUM_STIG = [1, 4, 7, 14, 21]
 _NUM_PER_CAT = 7
-_DISEASE = ["Fibromyalgia"] # "SCD", "Obesity", "Fibromyalgia", "Cirrhosis"
-_TEST = ["fib", "pass"] # "pass", "pain", "knee", "fib", "cirr"
-_COT = False
-_DEBIAS = False
 RETRY_NUM = 10
 
-MODEL = 'gpt-5.4-2026-03-05'
 CLIENT = build_model(MODEL)
-
 NAME_IN_PATH = MODEL.split("/")[-1]
 COT_STRING = "cot" if _COT else "direct"
 if _DEBIAS:
@@ -99,7 +109,7 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
             order_back += [i + offset for i in order_back_s]
             offset += len(test_pass[1][subscale_id])
         
-        thinking_string = test_pass[2]
+        thinking_string = test_pass[2] if not _COT else test_pass[3]
         if MODEL.startswith("gemini"):
             parts.append({"text": pass_string + thinking_string})
         else:
@@ -111,28 +121,28 @@ def construct_prompt(scenario, test_name, name, age, race, gender, so):
             order_back = None
             instruction = test_pain[0]
             choices = "\n".join([f"{a+1}. {test_pain[1][b]}" for a, b in enumerate(order)])
-            thinking_string = test_pain[2]
+            thinking_string = test_pain[2] if not _COT else test_pain[3]
     
         elif test_name == "knee":
             order = random.sample([i for i in range(len(test_knee[1]))], len(test_knee[1]))
             order_back = None
             instruction = test_knee[0]
             choices = "\n".join([f"{a+1}. {test_knee[1][b]}" for a, b in enumerate(order)])
-            thinking_string = test_knee[2]
+            thinking_string = test_knee[2] if not _COT else test_knee[3]
     
         elif test_name == "fib":
             order = random.sample([i for i in range(len(test_fib[1]))], len(test_fib[1]))
             order_back = None
             instruction = test_fib[0]
             choices = "\n".join([f"{a+1}. {test_fib[1][b]}" for a, b in enumerate(order)])
-            thinking_string = test_fib[2]
+            thinking_string = test_fib[2] if not _COT else test_fib[3]
     
         elif test_name == "cirr":
             order = random.sample([i for i in range(len(test_cirr[1]))], len(test_cirr[1]))
             order_back = None
             instruction = test_cirr[0]
             choices = "\n".join([f"{a+1}. {test_cirr[1][b]}" for a, b in enumerate(order)])
-            thinking_string = test_cirr[2]
+            thinking_string = test_cirr[2] if not _COT else test_cirr[3]
 
         if MODEL.startswith("gemini"):
             parts.append({"text": f"{instruction}\n{choices}\n{thinking_string}"})
@@ -170,7 +180,7 @@ def run_test():
                                         response, answer, reasoning = "", "", ""
                                         for attempt in range(RETRY_NUM):
                                             try:
-                                                response_text, reasoning = ask_llm(CLIENT, MODEL, messages, _COT)
+                                                response_text, reasoning = ask_llm(CLIENT, MODEL, messages)
                                                 response = json.loads(extract_last_json(response_text))
                                                 if t == "pass":
                                                     answer = list(response.get("rating", []))

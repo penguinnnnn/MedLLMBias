@@ -9,15 +9,18 @@ import re
 import random
 
 
-
 # === Determine backend ===
 openai_models = [
     "gpt-5.4-2026-03-05"
 ]
 
 together_models = [
-    "Qwen/Qwen3.5-397B-A17B", "deepseek-ai/DeepSeek-V3.1", "zai-org/GLM-5", "moonshotai/Kimi-K2.5",
-    "MiniMaxAI/MiniMax-M2.5", "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+    "Qwen/Qwen3.5-397B-A17B", "deepseek-ai/DeepSeek-V3.1", "zai-org/GLM-5",
+    "MiniMaxAI/MiniMax-M2.5", "moonshotai/Kimi-K2.5"
+]
+
+deepinfra_models = [
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
 ]
 
 google_models = [
@@ -33,6 +36,7 @@ anthropic_models = [
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
+DEEPINFRA_API_KEY = os.getenv("DEEPINFRA_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
@@ -43,6 +47,8 @@ def build_model(model_name):
     elif model_name in together_models:
         os.environ["TOGETHER_API_KEY"] = TOGETHER_API_KEY
         client = Together()
+    elif model_name in deepinfra_models:
+        client = OpenAI(api_key=DEEPINFRA_API_KEY, base_url="https://api.deepinfra.com/v1/openai")
     elif model_name in google_models:
         os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
         client = genai.Client()
@@ -54,7 +60,7 @@ def build_model(model_name):
     return client
 
 
-def ask_llm(client, model, msgs, cot=False, temperature=0.0, top_p=1.0, max_tokens=4096):
+def ask_llm(client, model, msgs, cot=False, temperature=0.0, top_p=1.0, max_tokens=8192):
     try:
         if model.startswith("gpt-5") or model.startswith("o"):
             response = client.responses.create(
@@ -98,7 +104,17 @@ def ask_llm(client, model, msgs, cot=False, temperature=0.0, top_p=1.0, max_toke
                 top_p=top_p,
                 max_tokens=max_tokens
             )
-            return response.choices[0].message.content, response.choices[0].message.reasoning
+            return response.choices[0].message.content, None
+        elif model in deepinfra_models:
+            response = client.chat.completions.create(
+                model=model,
+                messages=msgs,
+                reasoning_effort="high" if cot else "none", # none, low, medium, high
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content, None
         elif model in anthropic_models:
             try:
                 response = client.messages.create(
