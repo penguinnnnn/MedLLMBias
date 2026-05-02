@@ -33,6 +33,7 @@ def load_csv(path):
     df = pd.read_csv(path)
     df = df.iloc[:, :7]
     df.columns = ['Scenario', 'Name', 'Age', 'Race', 'Gender', 'SO', 'answer']
+    df = df[df['answer'] != 0]
     return df
 
 
@@ -99,7 +100,7 @@ def main():
         sys.exit(1)
 
     cond_csv = CONDITION_FILE_MAP[condition]
-    out_dir = f'results/{condition}/direct'
+    out_dir = f'../results/{condition}/direct_debias'
     os.makedirs(out_dir, exist_ok=True)
 
     model_names = list(MODEL_FILES.keys())
